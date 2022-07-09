@@ -9,8 +9,10 @@
 #define NUMERO_MASSIMO_NOTE 100
 
 const int TONE_PWM_CHANNEL = 1;
-const char* ssid = "FibraBrun7962";
-const char* password = "Mattia2020!";
+//const char* ssid = "FibraBrun7962";
+//const char* password = "Mattia2020!";
+const char* ssid = "TIM-25511286";
+const char* password = "n4eMxTFPf7PAeLycx2k94Lh7";
 //----------- Channel details ----------------//
 unsigned long Channel_ID = 1666719; // Your Channel ID
 const char * myWriteAPIKey = "Z277G945PR6L3488"; //Your write API key
@@ -24,7 +26,9 @@ bool suonaLive = false;
 
 String message;
 
+// Operazioni iniziali, eseguite una sola volta all'avvio di arduino
 void setup() {
+  // Inizializza connessione wifi e connessione a cloud, e definisce i pin di output
   ledcAttachPin(BUZZER, TONE_PWM_CHANNEL);
   pinMode(LED_RED, OUTPUT);
   pinMode(LED_GREEN, OUTPUT);
@@ -34,22 +38,34 @@ void setup() {
   ThingSpeak.begin(client);
 }
 
+// Operazione ripetuta all'infinito
 void loop() {
   message = "";
+
+  // Fino a quando non viene ricevuto alcun dato da bluetooth non viene eseguita alcuna elaborazione
   if (Serial.available() > 0) {
+    // Se ho ricevuto un dato bluetooth, riempio la stringa message con ogni carattere ricevuto (finché c'è qualcosa da leggere)
     while (Serial.available()) {
       message += char(Serial.read());
     }
+
+    // Elaboro il messaggio ricevuto
     elaboraDatoRicevutoConBluetooth();
   }
 }
 
 void elaboraDatoRicevutoConBluetooth () {
   char carattereDaValutare = toupper(message.charAt(0));
+
+  // Possono arrivare caratteri di qualsiasi tipo. In base al carattere ricevuto decido come comporarmi.
   switch (carattereDaValutare) {
+    // "L" indica che devo iniziare a suonare in live
     case 'L':
       suonaLive = true;
       break;
+    // "." significa che devo finire di suonare in live (se stavo suonando in live).
+    // Se non stavo suonando in live, devo riprodurre tutte le note ricevute fino ad ora.
+    // In entrambi i casi eseguo il salvataggio su cloud di tutte le note suonate fino ad ora.
     case '.':
       if (suonaLive) {
         suonaLive = false;
@@ -58,11 +74,14 @@ void elaboraDatoRicevutoConBluetooth () {
       }
       salvaSuCloud();
       break;
+    // "$" è un carattere speciale per suonare la canzone di StarWars.
     case '$':
       suonaStarWars();
-      salvaSuCloud();
       break;
     default:
+      // Nel caso in cui il carattere ricevuto non sia nessuno dei precedenti, significa che potrebbe essere una nota.
+      // Le note valide sono: A, B, C, D, E, F, G (Notazione internazionale per le note)
+      // Ogni volta che arriva una nota valida la salvo in un array, e se sto suonando in live la riproduco immediatamente.
       if (isNotaValida(carattereDaValutare)) {
         melodia[notaCorrente] = convertiCarattereInFrequenza(carattereDaValutare);
         if (suonaLive) {
@@ -74,6 +93,7 @@ void elaboraDatoRicevutoConBluetooth () {
   }
 }
 
+// Si occupa di riprodurre tutte le note salvate nell'array fino ad ora.
 void riproduciCanzone() {
   for (int i = 0; i < NUMERO_MASSIMO_NOTE && melodia[i] > 0; i++) {
     riproduciNota(melodia[i], 500);
@@ -113,6 +133,36 @@ int convertiCarattereInFrequenza(char carattereDaValutare) {
   }
 }
 
+char convertiFrequenzaInCarattere(int frequenzaDaValutare) {
+  switch (frequenzaDaValutare) {
+    case NOTE_A4:
+      return 'A';
+      break;
+    case NOTE_B4:
+      return 'B';
+      break;
+    case NOTE_C4:
+      return 'C';
+      break;
+    case NOTE_D4:
+      return 'D';
+      break;
+    case NOTE_E4:
+      return 'E';
+      break;
+    case NOTE_F4:
+      return 'F';
+      break;
+    case NOTE_G4:
+      return 'G';
+      break;
+    default:
+      return 0;
+      break;
+  }
+}
+
+// Riprodurre una nota significa emettere una determinata frequenza al buzzer e far colorare il led RGB con un colore che sarà sempre uguale a parità di nota.
 void riproduciNota(int nota, int durata)
 {
   ledcWriteTone(TONE_PWM_CHANNEL, nota);
@@ -122,6 +172,7 @@ void riproduciNota(int nota, int durata)
   delay(50);
 }
 
+// Vengono mandati i segnali analogici ai tre pin RGB per far colorare il led.
 void coloraLed(int nota) {
   int colore = nota % 255;
   int coloreRosso = colore;
@@ -142,6 +193,7 @@ void coloraLed(int nota) {
   analogWrite(LED_BLUE, coloreBlu);
 }
 
+// Viene riprodotta l'intera canzone di Star Wars
 void suonaStarWars() {
   suonaPrimaSezioneStarWars();
   suonaSecondaSezioneStarWars();
@@ -154,19 +206,6 @@ void suonaStarWars() {
   riproduciNota(NOTE_A4, 375);
   riproduciNota(NOTE_C5, 125);
   riproduciNota(NOTE_E5, 650);
-
-  //  delay(500);
-  //
-  //  suonaSecondaSezioneStarWars();
-  //
-  //  riproduciNota(NOTE_F4, 250);
-  //  riproduciNota(NOTE_GS4, 500);
-  //  riproduciNota(NOTE_F4, 375);
-  //  riproduciNota(NOTE_C5, 125);
-  //  riproduciNota(NOTE_A4, 500);
-  //  riproduciNota(NOTE_F4, 375);
-  //  riproduciNota(NOTE_C5, 125);
-  //  riproduciNota(NOTE_A4, 650);
 
   analogWrite(LED_RED, 0);
   analogWrite(LED_GREEN, 0);
@@ -227,9 +266,10 @@ void suonaSecondaSezioneStarWars()
 }
 
 void salvaSuCloud() {
-  // Inserire tra questi due commenti la scrittura su Cloud della canzone
-  WriteToCloud();
-  // Inserire tra questi due commenti la scrittura su Cloud della canzone
+  // Scrivo su cloud
+  writeToCloud();
+
+  // Ripulisco l'array melodia, l'indice dell'array e i colori del led RGB
   notaCorrente = 0;
   memset(melodia, 0, sizeof(melodia));
   analogWrite(LED_RED, 0);
@@ -254,20 +294,12 @@ void InitConnection() {
     Serial.println("Error connection");
 }
 
-void WriteToCloud() {
+void writeToCloud() {
   // write to the ThingSpeak channel
-  char* prova = "Do RE";
- /* for (int i = 0; i < notaCorrente; i++) {
-    int x = ThingSpeak.writeField(Channel_ID, Field_Number_1, melodia[i], myWriteAPIKey);
-    if (x == 200) {
-      Serial.println("Channel update successful.");
-    }
-    else {
-      Serial.println("Problem updating channel. HTTP error code " + String(x));
-    }
-    delay(12000);
-  }*/
- int x = ThingSpeak.writeField(Channel_ID, Field_Number_1, prova, myWriteAPIKey);
+ char* prova = "Do RE";
+ char* melodiaString;
+
+ int x = ThingSpeak.writeField(Channel_ID, Field_Number_1, melodiaString, myWriteAPIKey);
     if (x == 200) {
       Serial.println("Channel update successful.");
     }
