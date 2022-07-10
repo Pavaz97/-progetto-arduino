@@ -11,7 +11,7 @@
 const int TONE_PWM_CHANNEL = 1;
 //const char* ssid = "FibraBrun7962";
 //const char* password = "Mattia2020!";
-const char* ssid = "TIM-25511286";
+const char* ssid = "TIM-25511285";
 const char* password = "n4eMxTFPf7PAeLycx2k94Lh7";
 //----------- Channel details ----------------//
 unsigned long Channel_ID = 1666719; // Your Channel ID
@@ -133,31 +133,31 @@ int convertiCarattereInFrequenza(char carattereDaValutare) {
   }
 }
 
-char convertiFrequenzaInCarattere(int frequenzaDaValutare) {
+char *convertiFrequenzaInNota(int frequenzaDaValutare) {
   switch (frequenzaDaValutare) {
     case NOTE_A4:
-      return 'A';
+      return (char *) "LA ";
       break;
     case NOTE_B4:
-      return 'B';
+      return (char *) "SI ";
       break;
     case NOTE_C4:
-      return 'C';
+      return (char *) "DO ";
       break;
     case NOTE_D4:
-      return 'D';
+      return (char *) "RE ";
       break;
     case NOTE_E4:
-      return 'E';
+      return (char *) "MI ";
       break;
     case NOTE_F4:
-      return 'F';
+      return (char *) "FA ";
       break;
     case NOTE_G4:
-      return 'G';
+      return (char *) "SOL";
       break;
     default:
-      return 0;
+      return (char *) "ERR";
       break;
   }
 }
@@ -276,6 +276,7 @@ void salvaSuCloud() {
   analogWrite(LED_GREEN, 0);
   analogWrite(LED_BLUE, 0);
 }
+
 void InitConnection() {
   int TentativiConnessione = 10;
   int ContatoreTentativi = 0;
@@ -295,15 +296,33 @@ void InitConnection() {
 }
 
 void writeToCloud() {
-  // write to the ThingSpeak channel
- char* prova = "Do RE";
- char* melodiaString;
+  Serial.println("Preparo a scrivere su cloud");
+  // Prepara l'array da scrivere su cloud
 
- int x = ThingSpeak.writeField(Channel_ID, Field_Number_1, melodiaString, myWriteAPIKey);
-    if (x == 200) {
-      Serial.println("Channel update successful.");
-    }
-    else {
-      Serial.println("Problem updating channel. HTTP error code " + String(x));
-    }
+  // Ogni nota da scrivere occuperà 4 caratteri (3 per la nota e 1 per la virgola, Es.: "DO ," oppure "SOL,"
+  int numeroNoteDaScrivere = contaNumeroNoteDaScrivere();
+  char* melodiaString = (char *) malloc(sizeof(char) * (numeroNoteDaScrivere * 4));
+  strcpy(melodiaString, "");
+  
+  for (int i = 0; i < NUMERO_MASSIMO_NOTE && melodia[i] > 0; i++) {
+    strcat(melodiaString, convertiFrequenzaInNota(melodia[i]));
+    strcat(melodiaString, ",");
+  }
+
+  // Scrive su cloud l'intero array
+  int x = ThingSpeak.writeField(Channel_ID, Field_Number_1, melodiaString, myWriteAPIKey);
+  if (x == 200) {
+    Serial.println("Channel update successful.");
+  }
+  else {
+    Serial.println("Problem updating channel. HTTP error code " + String(x));
+  }
+}
+
+int contaNumeroNoteDaScrivere() {
+  int numeroNoteDaScrivere;
+
+  for (numeroNoteDaScrivere = 0; numeroNoteDaScrivere < NUMERO_MASSIMO_NOTE && melodia[numeroNoteDaScrivere] > 0; numeroNoteDaScrivere++){};
+
+  return numeroNoteDaScrivere;
 }
